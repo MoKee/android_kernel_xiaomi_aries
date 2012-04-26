@@ -205,7 +205,7 @@ struct cfs_bandwidth { };
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
 	struct load_weight load;
-	unsigned long nr_running, h_nr_running;
+	unsigned int nr_running, h_nr_running;
 
 	u64 exec_clock;
 	u64 min_vruntime;
@@ -294,7 +294,7 @@ static inline int rt_bandwidth_enabled(void)
 /* Real-Time classes' related field in a runqueue: */
 struct rt_rq {
 	struct rt_prio_array active;
-	unsigned long rt_nr_running;
+	unsigned int rt_nr_running;
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 	struct {
 		int curr; /* highest queued rt task prio */
@@ -368,7 +368,7 @@ struct rq {
 	 * nr_running and cpu_load should be in the same cacheline because
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
-	unsigned long nr_running;
+	unsigned int nr_running;
 	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
@@ -389,7 +389,11 @@ struct rq {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
-#endif
+#ifdef CONFIG_SMP
+	unsigned long h_load_throttle;
+#endif /* CONFIG_SMP */
+#endif /* CONFIG_FAIR_GROUP_SCHED */
+
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct list_head leaf_rt_rq_list;
 #endif
@@ -779,11 +783,7 @@ static inline void prepare_lock_switch(struct rq *rq, struct task_struct *next)
 	 */
 	next->on_cpu = 1;
 #endif
-#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-	raw_spin_unlock_irq(&rq->lock);
-#else
 	raw_spin_unlock(&rq->lock);
-#endif
 }
 
 static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
@@ -797,9 +797,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	smp_wmb();
 	prev->on_cpu = 0;
 #endif
-#ifndef __ARCH_WANT_INTERRUPTS_ON_CTXSW
 	local_irq_enable();
-#endif
 }
 #endif /* __ARCH_WANT_UNLOCKED_CTXSW */
 
@@ -898,6 +896,18 @@ extern const struct sched_class idle_sched_class;
 
 extern void trigger_load_balance(struct rq *rq, int cpu);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
+
+/*
+ * Only depends on SMP, FAIR_GROUP_SCHED may be removed when runnable_avg
+ * becomes useful in lb
+ */
+#if defined(CONFIG_FAIR_GROUP_SCHED)
+extern void idle_enter_fair(struct rq *this_rq);
+extern void idle_exit_fair(struct rq *this_rq);
+#else
+static inline void idle_enter_fair(struct rq *this_rq) {}
+static inline void idle_exit_fair(struct rq *this_rq) {}
+#endif
 
 #else	/* CONFIG_SMP */
 
@@ -1196,7 +1206,6 @@ extern void account_cfs_bandwidth_used(int enabled, int was_enabled);
 enum rq_nohz_flag_bits {
 	NOHZ_TICK_STOPPED,
 	NOHZ_BALANCE_KICK,
-	NOHZ_IDLE,
 };
 
 #define nohz_flags(cpu)	(&cpu_rq(cpu)->nohz_flags)
