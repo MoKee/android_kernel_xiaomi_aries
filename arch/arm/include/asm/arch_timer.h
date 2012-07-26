@@ -3,6 +3,7 @@
 
 #include <linux/ioport.h>
 #include <linux/clocksource.h>
+#include <asm/errno.h>
 
 #define ARCH_TIMER_USR_PCT_ACCESS_EN	(1 << 0) /* physical counter */
 #define ARCH_TIMER_USR_VCT_ACCESS_EN	(1 << 1) /* virtual counter */
