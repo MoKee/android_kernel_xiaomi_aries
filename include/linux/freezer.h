@@ -52,12 +52,21 @@ static inline bool try_to_freeze_nowarn(void)
 	return __refrigerator(false);
 }
 
-static inline bool try_to_freeze(void)
+/*
+ * DO NOT ADD ANY NEW CALLERS OF THIS FUNCTION
+ * If try_to_freeze causes a lockdep warning it means the caller may deadlock
+ */
+static inline bool try_to_freeze_unsafe(void)
 {
 	might_sleep();
 	if (likely(!freezing(current)))
 		return false;
 	return __refrigerator(false);
+}
+
+static inline bool try_to_freeze(void)
+{
+	return try_to_freeze_unsafe();
 }
 
 extern bool freeze_task(struct task_struct *p);
@@ -102,8 +111,23 @@ static inline void freezer_count(void)
 	try_to_freeze();
 }
 
-/*
- * Check if the task should be counted as freezable by the freezer
+/* DO NOT ADD ANY NEW CALLERS OF THIS FUNCTION */
+static inline void freezer_count_unsafe(void)
+{
+	current->flags &= ~PF_FREEZER_SKIP;
+	smp_mb();
+	try_to_freeze_unsafe();
+}
+
+/**
+ * freezer_should_skip - whether to skip a task when determining frozen
+ *			 state is reached
+ * @p: task in quesion
+ *
+ * This function is used by freezers after establishing %true freezing() to
+ * test whether a task should be skipped when determining the target frozen
+ * state is reached.  IOW, if this function returns %true, @p is considered
+ * frozen enough.
  */
 static inline int freezer_should_skip(struct task_struct *p)
 {
@@ -158,6 +182,14 @@ static inline long freezable_schedule_timeout_interruptible(long timeout)
 	return __retval;
 }
 
+/* DO NOT ADD ANY NEW CALLERS OF THIS FUNCTION */
+#define freezable_schedule_unsafe()					\
+({									\
+	freezer_do_not_count();						\
+	schedule();							\
+	freezer_count_unsafe();						\
+})
+
 /* Like schedule_timeout_killable(), but should not block the freezer. */
 static inline long freezable_schedule_timeout_killable(long timeout)
 {
@@ -191,6 +223,16 @@ static inline int freezable_schedule_hrtimeout_range(ktime_t *expires,
 	freezer_count();
 	return __retval;
 }
+
+/* DO NOT ADD ANY NEW CALLERS OF THIS FUNCTION */
+#define freezable_schedule_timeout_killable_unsafe(timeout)		\
+({									\
+	long __retval;							\
+	freezer_do_not_count();						\
+	__retval = schedule_timeout_killable(timeout);			\
+	freezer_count_unsafe();						\
+	__retval;							\
+})
 
 /*
  * Freezer-friendly wrappers around wait_event_interruptible(),
