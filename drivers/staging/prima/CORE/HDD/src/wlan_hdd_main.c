@@ -5496,7 +5496,6 @@ int hdd_wlan_startup(struct device *dev )
       goto err_config;
    }
 
-
    if (false == hdd_is_5g_supported(pHddCtx))
    {
       //5Ghz is not supported.
@@ -5507,6 +5506,13 @@ int hdd_wlan_startup(struct device *dev )
          pHddCtx->cfg_ini->nBandCapability = 1;
       }
    }
+
+   /* INI has been read, initialise the configuredMcastBcastFilter with
+    * INI value as this will serve as the default value
+    */
+   pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
+   hddLog(VOS_TRACE_LEVEL_INFO, "Setting configuredMcastBcastFilter: %d",
+                   pHddCtx->cfg_ini->mcastBcastFilterSetting);
    /*
     * cfg80211: Initialization  ...
     */
