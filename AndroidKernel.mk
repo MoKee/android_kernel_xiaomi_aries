@@ -52,19 +52,20 @@ TARGET_PREBUILT_KERNEL := $(TARGET_PREBUILT_INT_KERNEL)
 endif
 
 define mv-modules
-mdpath=`find $(KERNEL_MODULES_OUT) -type f -name modules.dep`;\
-if [ "$$mdpath" != "" ];then\
-mpath=`dirname $$mdpath`;\
-ko=`find $$mpath/kernel -type f -name *.ko`;\
-for i in $$ko; do mv $$i $(KERNEL_MODULES_OUT)/; done;\
-fi
+    mdpath=`find $(KERNEL_MODULES_OUT) -type f -name modules.order`;\
+    if [ "$$mdpath" != "" ];then\
+        mpath=`dirname $$mdpath`;\
+        ko=`find $$mpath/kernel -type f -name *.ko`;\
+        for i in $$ko; do $(ARM_EABI_TOOLCHAIN)/arm-eabi-strip --strip-unneeded $$i;\
+        mv $$i $(KERNEL_MODULES_OUT)/; done;\
+    fi
 endef
 
 define clean-module-folder
-mdpath=`find $(KERNEL_MODULES_OUT) -type f -name modules.dep`;\
-if [ "$$mdpath" != "" ];then\
-mpath=`dirname $$mdpath`; rm -rf $$mpath;\
-fi
+    mdpath=`find $(KERNEL_MODULES_OUT) -type f -name modules.order`;\
+    if [ "$$mdpath" != "" ];then\
+        mpath=`dirname $$mdpath`; rm -rf $$mpath;\
+    fi
 endef
 
 $(KERNEL_OUT):
