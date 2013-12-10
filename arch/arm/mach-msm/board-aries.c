@@ -68,7 +68,6 @@
 #include <linux/msm_tsens.h>
 #include <mach/msm_xo.h>
 #include <mach/msm_rtb.h>
-#include <mach/msm_serial_hs.h>
 #include <sound/cs8427.h>
 #include <media/gpio-ir-recv.h>
 #include <linux/fmem.h>
@@ -87,7 +86,6 @@
 #if defined(CONFIG_FB_MSM_HDMI_MHL_9244)
 #include <linux/mhl_api.h>
 #endif
-#include <mach/msm_serial_hs.h>
 /* header for synaptics touch screen */
 #include <linux/rmi.h>
 #ifdef CONFIG_RMI4_I2C
@@ -243,13 +241,6 @@ static struct platform_device apq8064_android_pmem_audio_device = {
 };
 #endif /* CONFIG_MSM_MULTIMEDIA_USE_ION */
 #endif /* CONFIG_ANDROID_PMEM */
-
-#ifdef CONFIG_BATTERY_BCL
-static struct platform_device battery_bcl_device = {
-	.name = "battery_current_limit",
-	.id = -1,
-	};
-#endif
 
 struct fmem_platform_data apq8064_fmem_pdata = {
 };
@@ -1129,7 +1120,7 @@ static struct wcd9xxx_pdata apq8064_tabla20_platform_data = {
 	.reset_gpio = PM8921_GPIO_PM_TO_SYS(34),
 	.micbias = {
 		.ldoh_v = TABLA_LDOH_2P85_V,
-		.cfilt1_mv = 1800,
+		.cfilt1_mv = 2700,
 		.cfilt2_mv = 2700,
 		.cfilt3_mv = 1800,
 		.bias1_cfilt_sel = TABLA_CFILT1_SEL,
@@ -3441,18 +3432,9 @@ static struct platform_device apq8064_device_ext_5p4v_vreg __devinitdata = {
 
 static struct platform_device apq8064_device_rpm_regulator __devinitdata = {
 	.name	= "rpm-regulator",
-	.id	= 0,
+	.id	= -1,
 	.dev	= {
 		.platform_data = &apq8064_rpm_regulator_pdata,
-	},
-};
-
-static struct platform_device
-apq8064_pm8921_device_rpm_regulator __devinitdata = {
-	.name	= "rpm-regulator",
-	.id	= 1,
-	.dev	= {
-		.platform_data = &apq8064_rpm_regulator_pm8921_pdata,
 	},
 };
 
@@ -3471,6 +3453,7 @@ static struct platform_device gpio_ir_recv_pdev = {
 static struct platform_device *common_not_mpq_devices[] __initdata = {
 	&apq8064_device_qup_i2c_gsbi1,
 	&apq8064_device_qup_i2c_gsbi3,
+	&apq8064_device_qup_i2c_gsbi4,
 	&mpq8064_device_qup_i2c_gsbi5,
 };
 
@@ -3485,14 +3468,8 @@ static struct platform_device *pm8921_common_devices[] __initdata = {
 	&apq8064_device_ext_3p3v_vreg,
 	&apq8064_device_ssbi_pmic1,
 	&apq8064_device_ssbi_pmic2,
+	&apq8064_device_ext_ts_sw_vreg,
 	&apq8064_device_ext_5p4v_vreg,
-};
-
-static struct platform_device *pm8917_common_devices[] __initdata = {
-	&apq8064_device_ext_mpp8_vreg,
-	&apq8064_device_ext_3p3v_vreg,
-	&apq8064_device_ssbi_pmic1,
-	&apq8064_device_ssbi_pmic2,
 };
 
 static struct platform_device *common_devices[] __initdata = {
@@ -3611,9 +3588,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_tsens_device,
 	&apq8064_cache_dump_device,
 	&msm_8064_device_tspp,
-#ifdef CONFIG_BATTERY_BCL
-	&battery_bcl_device,
-#endif
 	&apq8064_msm_mpd_device,
 };
 
@@ -3715,20 +3689,6 @@ static int rf4ce_gpio_init(void)
 }
 late_initcall(rf4ce_gpio_init);
 
-#ifdef CONFIG_SERIAL_MSM_HS
-static struct msm_serial_hs_platform_data mpq8064_gsbi6_uartdm_pdata = {
-	.config_gpio		= 4,
-	.uart_tx_gpio		= 14,
-	.uart_rx_gpio		= 15,
-	.uart_cts_gpio		= 16,
-	.uart_rfr_gpio		= 17,
-	.inject_rx_on_wakeup	= 1,
-	.rx_to_inject		= 0xFD,
-};
-#else
-static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
-#endif
-
 static struct platform_device *mpq_devices[] __initdata = {
 	&msm_device_sps_apq8064,
 	&mpq8064_device_qup_i2c_gsbi5,
@@ -3817,13 +3777,8 @@ static void __init apq8064_i2c_init(void)
 					&apq8064_i2c_qup_gsbi3_pdata;
 	apq8064_device_qup_i2c_gsbi1.dev.platform_data =
 					&apq8064_i2c_qup_gsbi1_pdata;
-
-	/* Add GSBI4 I2C pdata for non-fusion3 SGLTE2 */
-	if (socinfo_get_platform_subtype() !=
-				PLATFORM_SUBTYPE_SGLTE2) {
-		apq8064_device_qup_i2c_gsbi4.dev.platform_data =
+	apq8064_device_qup_i2c_gsbi4.dev.platform_data =
 					&apq8064_i2c_qup_gsbi4_pdata;
-	}
 
 	ifclk = clk_get_sys("msm_serial_hs.2", "iface_clk");
 	if (IS_ERR(ifclk))
@@ -4390,18 +4345,6 @@ static void __init apq8064_pm8917_pdata_fixup(void)
 	cdp_keys_data.nbuttons = ARRAY_SIZE(cdp_keys_pm8917);
 }
 
-#ifdef CONFIG_SERIAL_MSM_HS
-static struct msm_serial_hs_platform_data apq8064_uartdm_gsbi4_pdata = {
-	.config_gpio	= 4,
-	.uart_tx_gpio	= 10,
-	.uart_rx_gpio	= 11,
-	.uart_cts_gpio	= 12,
-	.uart_rfr_gpio	= 13,
-};
-#else
-static struct msm_serial_hs_platform_data apq8064_uartdm_gsbi4_pdata;
-#endif
-
 static void __init apq8064ab_update_retention_spm(void)
 {
 	int i;
@@ -4443,11 +4386,7 @@ static void __init apq8064_common_init(void)
 	BUG_ON(msm_rpm_init(&apq8064_rpm_data));
 	BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 	regulator_suppress_info_printing();
-	if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
-		configure_apq8064_pm8917_power_grid();
 	platform_device_register(&apq8064_device_rpm_regulator);
-	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-		platform_device_register(&apq8064_pm8921_device_rpm_regulator);
 	if (msm_xo_init())
 		pr_err("Failed to initialize XO votes\n");
 	msm_clock_init(&apq8064_clock_init_data);
@@ -4467,15 +4406,8 @@ static void __init apq8064_common_init(void)
 
 	platform_add_devices(early_common_devices,
 				ARRAY_SIZE(early_common_devices));
-	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-		platform_add_devices(pm8921_common_devices,
-					ARRAY_SIZE(pm8921_common_devices));
-	else
-		platform_add_devices(pm8917_common_devices,
-					ARRAY_SIZE(pm8917_common_devices));
-
-	if (machine_is_apq8064_mtp() || machine_is_mitwo())
-		platform_device_register(&apq8064_device_ext_ts_sw_vreg);
+	platform_add_devices(pm8921_common_devices,
+				ARRAY_SIZE(pm8921_common_devices));
 
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 	if (!(machine_is_mpq8064_cdp() || machine_is_mpq8064_hrd() ||
@@ -4483,11 +4415,6 @@ static void __init apq8064_common_init(void)
 		platform_add_devices(common_not_mpq_devices,
 			ARRAY_SIZE(common_not_mpq_devices));
 
-		/* Add GSBI4 I2C Device for non-fusion3 platform */
-		if (socinfo_get_platform_subtype() !=
-					PLATFORM_SUBTYPE_SGLTE2) {
-			platform_device_register(&apq8064_device_qup_i2c_gsbi4);
-		}
 	}
 
 	msm_hsic_pdata.swfi_latency =
@@ -4522,11 +4449,6 @@ static void __init apq8064_common_init(void)
 				&sglte2_qsc_platform_data;
 			platform_device_register(&sglte2_qsc_8064_device);
 
-			/* GSBI4 UART device for Primay IPC */
-			apq8064_uartdm_gsbi4_pdata.wakeup_irq = gpio_to_irq(11);
-			apq8064_device_uartdm_gsbi4.dev.platform_data =
-						&apq8064_uartdm_gsbi4_pdata;
-			platform_device_register(&apq8064_device_uartdm_gsbi4);
 		} else if (SOCINFO_VERSION_MINOR(platform_version) == 1) {
 			i2s_mdm_8064_device.dev.platform_data =
 				&mdm_platform_data;
@@ -4576,16 +4498,6 @@ static void __init apq8064_cdp_init(void)
 #ifdef CONFIG_MSM_CAMERA
 	apq8064_init_cam();
 #endif
-
-	if (machine_is_mpq8064_hrd() || machine_is_mpq8064_dtv()) {
-#ifdef CONFIG_SERIAL_MSM_HS
-		/* GSBI6(2) - UARTDM_RX */
-		mpq8064_gsbi6_uartdm_pdata.wakeup_irq = gpio_to_irq(15);
-		mpq8064_device_uartdm_gsbi6.dev.platform_data =
-					&mpq8064_gsbi6_uartdm_pdata;
-#endif
-		platform_device_register(&mpq8064_device_uartdm_gsbi6);
-	}
 
 	if (machine_is_apq8064_cdp() || machine_is_apq8064_liquid())
 		platform_device_register(&cdp_kp_pdev);
