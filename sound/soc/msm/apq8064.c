@@ -129,6 +129,27 @@ MODULE_PARM_DESC(apq8064_hs_detect_use_firmware, "Use firmware for headset "
 static int msm_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 				    bool dapm);
 
+#ifdef CONFIG_SND_SOC_WCD9310_MBHC_USEU_SWITCH
+#define XIAOMI_GPIO_US_EU_HS_SW 36
+static int us_eu_hs_sw_setup(int enable)
+{
+	int ret = 0;
+
+	if (enable) {
+		ret = gpio_direction_output(XIAOMI_GPIO_US_EU_HS_SW, 1);
+		if (ret)
+			pr_err("%s:Failed to configure (HIGH) GPIO %d\n",
+				__func__, XIAOMI_GPIO_US_EU_HS_SW);
+	} else {
+		ret = gpio_direction_output(XIAOMI_GPIO_US_EU_HS_SW, 0);
+		if (ret)
+			pr_err("%s:Failed to configure (LOW) GPIO %d\n",
+				__func__, XIAOMI_GPIO_US_EU_HS_SW);
+	}
+	return ret;
+}
+#endif
+
 static struct tabla_mbhc_config mbhc_cfg = {
 	.headset_jack = &hs_jack,
 	.button_jack = &button_jack,
@@ -140,7 +161,9 @@ static struct tabla_mbhc_config mbhc_cfg = {
 	.gpio = JACK_DETECT_GPIO,
 	.gpio_irq = 0,
 	.gpio_level_insert = 0,
-	.detect_extn_cable = false,
+#ifdef CONFIG_SND_SOC_WCD9310_MBHC_USEU_SWITCH
+	.detection_setup = us_eu_hs_sw_setup,
+#endif
 };
 
 static struct mutex cdc_mclk_mutex;
@@ -2245,6 +2268,77 @@ static struct snd_soc_card snd_soc_card_msm = {
 
 static struct platform_device *msm_snd_device;
 
+static int msm_configure_headset_mic_gpios(void)
+{
+	int ret = 0;
+#if defined(MBHC_PM_GPIO_AV_SWITCH) || defined(MBHC_PM_GPIO_US_EURO_SWITCH)
+	struct pm_gpio param = {
+		.direction      = PM_GPIO_DIR_OUT,
+		.output_buffer  = PM_GPIO_OUT_BUF_CMOS,
+		.output_value   = 1,
+		.pull	   = PM_GPIO_PULL_NO,
+		.vin_sel	= PM_GPIO_VIN_S4,
+		.out_strength   = PM_GPIO_STRENGTH_MED,
+		.function       = PM_GPIO_FUNC_NORMAL,
+	};
+#endif
+
+#ifdef MBHC_PM_GPIO_AV_SWITCH
+	ret = gpio_request(PM8921_GPIO_PM_TO_SYS(23), "AV_SWITCH");
+	if (ret) {
+		pr_err("%s: Failed to request gpio %d\n", __func__,
+			PM8921_GPIO_PM_TO_SYS(23));
+		return ret;
+	}
+
+	ret = pm8xxx_gpio_config(PM8921_GPIO_PM_TO_SYS(23), &param);
+	if (ret)
+		pr_err("%s: Failed to configure gpio %d\n", __func__,
+			PM8921_GPIO_PM_TO_SYS(23));
+	else
+		gpio_direction_output(PM8921_GPIO_PM_TO_SYS(23), 0);
+#endif
+
+#ifdef MBHC_PM_GPIO_US_EURO_SWITCH
+	ret = gpio_request(PM8921_GPIO_PM_TO_SYS(35), "US_EURO_SWITCH");
+	if (ret) {
+		pr_err("%s: Failed to request gpio %d\n", __func__,
+			PM8921_GPIO_PM_TO_SYS(35));
+		gpio_free(PM8921_GPIO_PM_TO_SYS(23));
+		return ret;
+	}
+	ret = pm8xxx_gpio_config(PM8921_GPIO_PM_TO_SYS(35), &param);
+	if (ret)
+		pr_err("%s: Failed to configure gpio %d\n", __func__,
+			PM8921_GPIO_PM_TO_SYS(35));
+	else
+		gpio_direction_output(PM8921_GPIO_PM_TO_SYS(35), 0);
+#endif
+
+#ifdef CONFIG_SND_SOC_WCD9310_MBHC_USEU_SWITCH
+	ret = gpio_request(XIAOMI_GPIO_US_EU_HS_SW, "US_EURO_SWITCH");
+	if (ret)
+		pr_err("%s: Failed to request gpio %d\n", __func__,
+			XIAOMI_GPIO_US_EU_HS_SW);
+#endif
+
+	return ret;
+}
+static void msm_free_headset_mic_gpios(void)
+{
+	if (msm_headset_gpios_configured) {
+#ifdef MBHC_USE_AV_SWITCH
+		gpio_free(PM8921_GPIO_PM_TO_SYS(23));
+#endif
+#ifdef MBHC_USE_US_EURO_SWITCH
+		gpio_free(PM8921_GPIO_PM_TO_SYS(35));
+#endif
+#ifdef CONFIG_SND_SOC_WCD9310_MBHC_USEU_SWITCH
+		gpio_free(XIAOMI_GPIO_US_EU_HS_SW);
+#endif
+	}
+}
+
 static int __init msm_audio_init(void)
 {
 	int ret;
@@ -2281,9 +2375,14 @@ static int __init msm_audio_init(void)
 		return ret;
 	}
 
+	if (msm_configure_headset_mic_gpios()) {
+		pr_err("%s Fail to configure headset mic gpios\n", __func__);
+		msm_headset_gpios_configured = 0;
+	} else
+		msm_headset_gpios_configured = 1;
+
 	mutex_init(&cdc_mclk_mutex);
 	atomic_set(&auxpcm_rsc_ref, 0);
-
 	return ret;
 
 }
@@ -2295,6 +2394,7 @@ static void __exit msm_audio_exit(void)
 		pr_err("%s: Not the right machine type\n", __func__);
 		return ;
 	}
+	msm_free_headset_mic_gpios();
 	platform_device_unregister(msm_snd_device);
 	if (mbhc_cfg.gpio)
 		gpio_free(mbhc_cfg.gpio);
