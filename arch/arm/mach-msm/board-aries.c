@@ -1303,10 +1303,6 @@ static struct i2c_board_info lm3554_board_info[] __initdata = {
 };
 #endif
 #if defined(CONFIG_AUDIENCE_ES310)
-#include <linux/firmware.h>
-#include "audience-es310.h"
-#define ES310_FIRMWARE_NAME  "audience-es310.img"
-DECLARE_BUILTIN_FIRMWARE(ES310_FIRMWARE_NAME, firmware_audience_es310);
 static int es310_power_setup(int on)
 {
 	int rc;
@@ -1344,8 +1340,7 @@ static struct es310_platform_data audience_es310_pdata = {
 	.gpio_es310_clk = MITWO_GPIO_ES310_CLK,
 	.gpio_es310_wakeup = MITWO_GPIO_ES310_WAKEUP,
 	.gpio_es310_mic_switch = MITWO_GPIO_ES310_MIC_SWITCH,
-	.power_on = es310_power_setup,
-	.fw_name = ES310_FIRMWARE_NAME,
+	.power_setup = es310_power_setup,
 };
 
 static struct i2c_board_info audience_es310_board_info[] = {

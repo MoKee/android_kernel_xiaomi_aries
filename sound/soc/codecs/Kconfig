@@ -289,6 +289,13 @@ config SND_SOC_WCD9304
 config SND_SOC_WCD9310
 	tristate
 
+config SND_SOC_WCD9310_MBHC_USEU_SWITCH
+	bool "Support US EU HS switch"
+	depends on SND_SOC_WCD9310
+	default n
+	help
+	 To add support for US EU Headset switch.
+
 config SND_SOC_CS8427
 	tristate
 
