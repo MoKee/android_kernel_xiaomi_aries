@@ -291,6 +291,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_platform_data *pdata = drvdata->pdata;
 	struct lm3530_pwm_data *pwm = &pdata->pwm_data;
 	u8 max_brightness = led_cdev->max_brightness;
+	static int blon = 0;
 
 	switch (drvdata->mode) {
 	case LM3530_BL_MODE_MANUAL:
@@ -338,7 +339,12 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 				break;
 			}
 		}
-
+		if (brt_val == 0) {
+			if (!blon) {
+				blon = 1;
+				return;
+			}
+		}
 		/* set the brightness in brightness control register*/
 		err = i2c_smbus_write_byte_data(drvdata->client,
 				LM3530_BRT_CTRL_REG, brt_val);
@@ -472,7 +478,7 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 	drvdata->client = client;
 	drvdata->pdata = pdata;
 	drvdata->brightness = LED_OFF;
-	drvdata->enable = false;
+	drvdata->enable = true;
 	drvdata->led_dev.name = LM3530_LED_DEV;
 	drvdata->led_dev.brightness_set = lm3530_brightness_set;
 	drvdata->led_dev.max_brightness = MAX_BRIGHTNESS;
