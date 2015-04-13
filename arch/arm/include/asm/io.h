@@ -279,7 +279,6 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define readll_relaxed_no_log(c) ({ u64 __r = le64_to_cpu((__force __le64) \
 					__raw_readll_no_log(c)); __r; })
 
-
 #define writeb_relaxed(v,c)	((void)__raw_writeb(v,c))
 #define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
 					cpu_to_le16(v),c))
