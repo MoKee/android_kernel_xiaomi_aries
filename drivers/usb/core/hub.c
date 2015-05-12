@@ -24,11 +24,8 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
-<<<<<<< HEAD
 #include <linux/usb/otg.h>
-=======
 #include <linux/random.h>
->>>>>>> v3.4.10
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
