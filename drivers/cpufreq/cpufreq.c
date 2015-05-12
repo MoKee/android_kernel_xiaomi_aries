@@ -32,6 +32,7 @@
 
 #include <trace/events/power.h>
 
+#define MIN(x,y) x <= y ? x : y
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -398,7 +399,8 @@ out:
  * Write out information from cpufreq_driver->policy[cpu]; object must be
  * "unsigned int".
  */
-
+static int thermal_max_freq = 0;
+static int sys_max_freq = 0;
 #define show_one(file_name, object)			\
 static ssize_t show_##file_name				\
 (struct cpufreq_policy *policy, char *buf)		\
@@ -413,6 +415,16 @@ show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 show_one(scaling_cur_freq, cur);
 show_one(cpu_utilization, util);
+
+static ssize_t show_thermal_cap_freq(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%u\n", thermal_max_freq);
+}
+
+static ssize_t show_sys_cap_freq(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%u\n", sys_max_freq);
+}
 
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy);
@@ -444,6 +456,47 @@ static ssize_t store_##file_name					\
 store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
 
+static ssize_t store_thermal_cap_freq(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;
+	struct cpufreq_policy new_policy;
+
+	ret = cpufreq_get_policy(&new_policy, policy->cpu);
+	if (ret)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%u", &thermal_max_freq);
+	if (ret != 1)
+		return -EINVAL;
+
+	new_policy.max = MIN(thermal_max_freq, sys_max_freq);
+
+	ret = __cpufreq_set_policy(policy, &new_policy);
+	policy->user_policy.max = policy->max;
+
+	return ret ? ret : count;
+}
+
+static ssize_t store_sys_cap_freq(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+        unsigned int ret = -EINVAL;
+        struct cpufreq_policy new_policy;
+
+        ret = cpufreq_get_policy(&new_policy, policy->cpu);
+        if (ret)
+                return -EINVAL;
+
+        ret = sscanf(buf, "%u", &sys_max_freq);
+        if (ret != 1)
+                return -EINVAL;
+
+        new_policy.max = MIN(thermal_max_freq, sys_max_freq);
+
+        ret = __cpufreq_set_policy(policy, &new_policy);
+        policy->user_policy.max = policy->max;
+
+        return ret ? ret : count;
+}
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
  */
@@ -632,6 +685,8 @@ cpufreq_freq_attr_ro(affected_cpus);
 cpufreq_freq_attr_ro(cpu_utilization);
 cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
+cpufreq_freq_attr_rw(thermal_cap_freq);
+cpufreq_freq_attr_rw(sys_cap_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 
@@ -641,6 +696,8 @@ static struct attribute *default_attrs[] = {
 	&cpuinfo_transition_latency.attr,
 	&scaling_min_freq.attr,
 	&scaling_max_freq.attr,
+	&thermal_cap_freq.attr,
+	&sys_cap_freq.attr,
 	&affected_cpus.attr,
 	&cpu_utilization.attr,
 	&related_cpus.attr,

@@ -1204,11 +1204,15 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 						GET_FAR(base, num), 0);
 
 		if (ret == -ENOSYS) {
-			pr_err("Unexpected IOMMU page fault!\n");
-			pr_err("name    = %s\n", drvdata->name);
-			pr_err("context = %s (%d)\n", ctx_drvdata->name, num);
-			pr_err("Interesting registers:\n");
-			print_ctx_regs(base, num);
+			if(strcmp(drvdata->name,"vfe") == 0) {
+				/* Bypass vfe IOMMU dump */
+			} else {
+				pr_err("Unexpected IOMMU page fault!\n");
+				pr_err("name    = %s\n", drvdata->name);
+				pr_err("context = %s (%d)\n", ctx_drvdata->name, num);
+				pr_err("Interesting registers:\n");
+				print_ctx_regs(base, num);
+			}
 		}
 
 		SET_FSR(base, num, fsr);

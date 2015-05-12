@@ -617,8 +617,10 @@ static int __qseecom_process_incomplete_cmd(struct qseecom_dev_handle *data,
 		if (data->abort) {
 			pr_err("Abort clnt %d waiting on lstnr svc %d, ret %d",
 				data->client.app_id, lstnr, ret);
-			rc = -ENODEV;
+			return -ENODEV;
 		}
+
+
 		qseecom.send_resp_flag = 0;
 		send_data_rsp.qsee_cmd_id = QSEOS_LISTENER_DATA_RSP_COMMAND;
 		send_data_rsp.listener_id  = lstnr ;

@@ -251,6 +251,7 @@ static void input_handle_event(struct input_dev *dev,
 					input_stop_autorepeat(dev);
 			}
 
+			do_gettimeofday(&dev->key_time[code]);
 			disposition = INPUT_PASS_TO_HANDLERS;
 		}
 		break;
@@ -590,15 +591,18 @@ EXPORT_SYMBOL(input_close_device);
 static void input_dev_release_keys(struct input_dev *dev)
 {
 	int code;
+	int result = false;
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
 				input_pass_event(dev, EV_KEY, code, 0);
+				result = true;
 			}
 		}
-		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+		if (result)
+			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
 }
 
