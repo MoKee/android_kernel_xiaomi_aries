@@ -251,7 +251,6 @@ static void input_handle_event(struct input_dev *dev,
 					input_stop_autorepeat(dev);
 			}
 
-			do_gettimeofday(&dev->key_time[code]);
 			disposition = INPUT_PASS_TO_HANDLERS;
 		}
 		break;
