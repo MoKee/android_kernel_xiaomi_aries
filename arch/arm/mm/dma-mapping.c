@@ -467,9 +467,6 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM), caller);
 	if (c) {
 		pte_t *pte;
-#ifdef CONFIG_SPARSEMEM
-		unsigned long pfn1 = page_to_pfn(page);
-#endif
 		int idx = CONSISTENT_PTE_INDEX(c->vm_start);
 		u32 off = CONSISTENT_OFFSET(c->vm_start) & (PTRS_PER_PTE-1);
 
@@ -481,11 +478,6 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
 
 			set_pte_ext(pte, mk_pte(page, prot), 0);
 			page++;
-#ifdef CONFIG_SPARSEMEM
-			pfn1++;
-			if (!(pfn1 % PAGES_PER_SECTION))
-				page = pfn_to_page(pfn1);
-#endif
 			pte++;
 			off++;
 			if (off >= PTRS_PER_PTE) {
