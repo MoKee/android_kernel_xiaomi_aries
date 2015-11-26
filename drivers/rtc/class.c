@@ -53,7 +53,7 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	rtc_read_time(rtc, &tm);
 	getnstimeofday(&old_system);
 	rtc_tm_to_time(&tm, &old_rtc.tv_sec);
-
+	old_rtc.tv_nsec = NSEC_PER_SEC >> 1;
 
 	/*
 	 * To avoid drift caused by repeated suspend/resumes,
@@ -95,7 +95,7 @@ static int rtc_resume(struct device *dev)
 		return 0;
 	}
 	rtc_tm_to_time(&tm, &new_rtc.tv_sec);
-	new_rtc.tv_nsec = 0;
+	new_rtc.tv_nsec = NSEC_PER_SEC >> 1;
 
 	if (new_rtc.tv_sec < old_rtc.tv_sec) {
 		pr_debug("%s:  time travel!\n", dev_name(&rtc->dev));

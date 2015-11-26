@@ -150,23 +150,15 @@ static void freezer_fork(struct task_struct *task)
 {
 	struct freezer *freezer;
 
-	/*
-	 * No lock is needed, since the task isn't on tasklist yet,
-	 * so it can't be moved to another cgroup, which means the
-	 * freezer won't be removed and will be valid during this
-	 * function call.  Nevertheless, apply RCU read-side critical
-	 * section to suppress RCU lockdep false positives.
-	 */
 	rcu_read_lock();
 	freezer = task_freezer(task);
-	rcu_read_unlock();
 
 	/*
 	 * The root cgroup is non-freezable, so we can skip the
 	 * following check.
 	 */
 	if (!freezer->css.cgroup->parent)
-		return;
+		goto out;
 
 	spin_lock_irq(&freezer->lock);
 	/*
@@ -176,6 +168,8 @@ static void freezer_fork(struct task_struct *task)
 	if (freezer->state != CGROUP_THAWED)
 		freeze_task(task);
 	spin_unlock_irq(&freezer->lock);
+out:
+	rcu_read_unlock();
 }
 
 /*
