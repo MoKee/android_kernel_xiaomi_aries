@@ -326,6 +326,11 @@ extern int lm3554_flashlight_power(int on);
 extern int lm3554_flashlight_control(int mode);
 #endif
 
+#ifdef CONFIG_LEDS_LM3554
+extern int lm3554_flashlight_power(int on);
+extern int lm3554_flashlight_control(int mode);
+#endif
+
 int msm_camera_flash_external(
 	struct msm_camera_sensor_flash_external *external,
 	unsigned led_state)
