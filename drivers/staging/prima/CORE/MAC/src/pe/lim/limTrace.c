@@ -64,7 +64,6 @@
 
 #include "limTrace.h"
 #include "limTimerUtils.h"
-#include "vos_trace.h"
 
 
 #ifdef LIM_TRACE_RECORD
@@ -140,13 +139,13 @@ static tANI_U8* __limTraceGetMgmtDropReasonString( tANI_U16 dropReason )
 
 void limTraceInit(tpAniSirGlobal pMac)
 {
-    vosTraceRegister(VOS_MODULE_ID_PE, (tpvosTraceCb)&limTraceDump);
+    macTraceRegister(pMac,  VOS_MODULE_ID_PE, limTraceDump);
 }
 
 
 
 
-void limTraceDump(tpAniSirGlobal pMac, tpvosTraceRecord pRecord, tANI_U16 recIndex)
+void limTraceDump(tpAniSirGlobal pMac, tpTraceRecord pRecord, tANI_U16 recIndex)
 {
 
     static char *frameSubtypeStr[LIM_TRACE_MAX_SUBTYPES] =

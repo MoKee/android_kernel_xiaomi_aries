@@ -685,7 +685,8 @@ int iw_set_scan(struct net_device *dev, struct iw_request_info *info,
 
       if (wrqu->data.flags & IW_SCAN_THIS_ESSID)  {
 
-          if(scanReq->essid_len) {
+          if(scanReq->essid_len &&
+               (scanReq->essid_len <= SIR_MAC_MAX_SSID_LENGTH)) {
               scanRequest.SSIDs.numOfSSIDs = 1;
               scanRequest.SSIDs.SSIDList =( tCsrSSIDInfo *)vos_mem_malloc(sizeof(tCsrSSIDInfo));
               if(scanRequest.SSIDs.SSIDList) {
@@ -698,6 +699,10 @@ int iw_set_scan(struct net_device *dev, struct iw_request_info *info,
                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s: Unable to allocate memory",__func__);
                 VOS_ASSERT(0);
               }
+          }
+          else
+          {
+            hddLog(LOGE, FL("Invalid essid length : %d"), scanReq->essid_len);
           }
       }
 
@@ -959,7 +964,8 @@ int iw_set_cscan(struct net_device *dev, struct iw_request_info *info,
         int i, j, ssid_start;
         hdd_scan_pending_option_e scanPendingOption = WEXT_SCAN_PENDING_GIVEUP;
 
-        str_ptr = extra;
+        /* save the original buffer */
+        str_ptr = wrqu->data.pointer;
 
         i = WEXT_CSCAN_HEADER_SIZE;
 
@@ -1192,8 +1198,8 @@ exit_point:
 }
 
 /* Abort any MAC scan if in progress */
-void hdd_abort_mac_scan(hdd_context_t* pHddCtx, eCsrAbortReason reason)
+void hdd_abort_mac_scan(hdd_context_t* pHddCtx)
 {
-    sme_AbortMacScan(pHddCtx->hHal, reason);
+    sme_AbortMacScan(pHddCtx->hHal);
 }
 

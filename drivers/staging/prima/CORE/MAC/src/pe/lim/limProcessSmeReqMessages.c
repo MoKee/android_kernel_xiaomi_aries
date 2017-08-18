@@ -87,8 +87,8 @@
 #ifdef FEATURE_WLAN_CCX
 /* These are the min/max tx power (non virtual rates) range
    supported by prima hardware */
-#define MIN_TX_PWR_CAP    8
-#define MAX_TX_PWR_CAP    22
+#define MIN_TX_PWR_CAP    12
+#define MAX_TX_PWR_CAP    19
 
 #endif
 
@@ -1065,6 +1065,7 @@ void limGetRandomBssid(tpAniSirGlobal pMac, tANI_U8 *data)
      palCopyMemory(pMac->hHdd, data, (tANI_U8*)random, sizeof(tSirMacAddr));
 }
 
+
 /**
  * __limProcessSmeScanReq()
  *
@@ -1479,8 +1480,6 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     tANI_U8             smesessionId;
     tANI_U16            smetransactionId;
     tPowerdBm           localPowerConstraint = 0, regMax = 0;
-    tANI_U16            ieLen;
-    v_U8_t              *vendorIE;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT 
     //Not sending any session, since it is not created yet. The response whould have correct state.
@@ -1556,8 +1555,7 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 // Log the event and send success
                 PELOGW(limLog(pMac, LOGW, FL("Received SME_JOIN_REQ for currently joined BSS"));)
                 /// Send Join success response to host
-                retCode = eSIR_SME_ALREADY_JOINED_A_BSS;
-                psessionEntry = NULL;
+                retCode = eSIR_SME_SUCCESS;
                 goto end;
             }
             else
@@ -1578,7 +1576,6 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             }
         }   
         handleHTCapabilityandHTInfo(pMac, psessionEntry);
-        psessionEntry->isAmsduSupportInAMPDU = pSmeJoinReq->isAmsduSupportInAMPDU;
 
         /* Store Session related parameters */
         /* Store PE session Id in session Table */
@@ -1602,28 +1599,6 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         psessionEntry->bssType = pSmeJoinReq->bsstype;
 
         psessionEntry->statypeForBss = STA_ENTRY_PEER;
-        psessionEntry->limWmeEnabled = pSmeJoinReq->isWMEenabled;
-        psessionEntry->limQosEnabled = pSmeJoinReq->isQosEnabled;
-
-        /* Store vendor specfic IE for CISCO AP */
-        ieLen = (pSmeJoinReq->bssDescription.length +
-                    sizeof( pSmeJoinReq->bssDescription.length ) -
-                    GET_FIELD_OFFSET( tSirBssDescription, ieFields ));
-
-        vendorIE = limGetVendorIEOuiPtr(pMac, SIR_MAC_CISCO_OUI,
-                    SIR_MAC_CISCO_OUI_SIZE,
-                      ((tANI_U8 *)&pSmeJoinReq->bssDescription.ieFields) , ieLen);
-
-        if ( NULL != vendorIE )
-        {
-            limLog(pMac, LOGE,
-                  FL("DUT is trying to connect to Cisco AP"));
-            psessionEntry->isCiscoVendorAP = TRUE;
-        }
-        else
-        {
-            psessionEntry->isCiscoVendorAP = FALSE;
-        }
 
         /* Copy the dot 11 mode in to the session table */
 
@@ -2641,20 +2616,6 @@ __limProcessSmeDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
                         retCode       = eSIR_SME_STA_NOT_AUTHENTICATED;
                         deauthTrigger = eLIM_HOST_DEAUTH;
-                        /**
-                         *here we received deauth request from AP so sme state is
-                          eLIM_SME_WT_DEAUTH_STATE.if we have ISSUED delSta then
-                          mlm state should be eLIM_MLM_WT_DEL_STA_RSP_STATE and if
-                          we got delBSS rsp then mlm state should be eLIM_MLM_IDLE_STATE
-                          so the below condition captures the state where delSta
-                          not done and firmware still in connected state.
-                        */
-                        if (psessionEntry->limSmeState == eLIM_SME_WT_DEAUTH_STATE &&
-                            psessionEntry->limMlmState != eLIM_MLM_IDLE_STATE &&
-                            psessionEntry->limMlmState != eLIM_MLM_WT_DEL_STA_RSP_STATE)
-                        {
-                            retCode = eSIR_SME_DEAUTH_STATUS;
-                        }
                         goto sendDeauth;
                     }
 
@@ -3574,6 +3535,7 @@ __limProcessSmeAssocCnfNew(tpAniSirGlobal pMac, tANI_U32 msgType, tANI_U32 *pMsg
                              true, pStaDs->mlmStaContext.authType,
                              pStaDs->assocId, true,
                              eSIR_MAC_UNSPEC_FAILURE_STATUS, psessionEntry);
+        return;
     }
 
 end:
@@ -3946,7 +3908,6 @@ __limProcessSmeStatsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     {
         limLog(pMac, LOGE, FL("session does not exist for given bssId"));
         palFreeMemory( pMac, pMsgBuf );
-        pMsgBuf = NULL;
         return;
     }
 
@@ -3972,7 +3933,6 @@ __limProcessSmeStatsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         default: //Unknown request.
             PELOGE(limLog(pMac, LOGE, "Unknown Statistics request");)
             palFreeMemory( pMac, pMsgBuf );
-            pMsgBuf = NULL;
             return;
     }
 
@@ -4000,7 +3960,6 @@ __limProcessSmeStatsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if( eSIR_SUCCESS != (wdaPostCtrlMsg( pMac, &msgQ ))){
         limLog(pMac, LOGP, "Unable to forward request");
         palFreeMemory( pMac, pMsgBuf );
-        pMsgBuf = NULL;
         return;
     }
 
@@ -4049,7 +4008,6 @@ __limProcessSmeGetStatisticsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
     if( eSIR_SUCCESS != (wdaPostCtrlMsg( pMac, &msgQ ))){
         palFreeMemory( pMac, pMsgBuf );
-        pMsgBuf = NULL;
         limLog(pMac, LOGP, "Unable to forward request");
         return;
     }
@@ -4097,7 +4055,6 @@ __limProcessSmeGetRoamRssiRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
     if( eSIR_SUCCESS != (wdaPostCtrlMsg( pMac, &msgQ ))){
         palFreeMemory( pMac, pMsgBuf );
-        pMsgBuf = NULL;
         limLog(pMac, LOGP, "Unable to forward request");
         return;
     }
@@ -4251,7 +4208,6 @@ __limProcessSmeChangeBI(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         return;
     }
 
-    vos_mem_zero(&beaconParams, sizeof(tUpdateBeaconParams));
     pChangeBIParams = (tpSirChangeBIParams)pMsgBuf;
 
     if((psessionEntry = peFindSessionByBssid(pMac, pChangeBIParams->bssId, &sessionId)) == NULL)
@@ -4479,6 +4435,7 @@ __limProcessSmeAddStaSelfReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
    palCopyMemory( pMac->hHdd, pAddStaSelfParams->selfMacAddr, pSmeReq->selfMacAddr, sizeof(tSirMacAddr) ); 
 
+   pAddStaSelfParams->currDeviceMode = pSmeReq->currDeviceMode;
    msg.type = SIR_HAL_ADD_STA_SELF_REQ;
    msg.reserved = 0;
    msg.bodyptr =  pAddStaSelfParams;

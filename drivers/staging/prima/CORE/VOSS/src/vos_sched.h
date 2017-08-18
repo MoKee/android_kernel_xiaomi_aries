@@ -341,9 +341,6 @@ typedef struct _VosContextType
 
    volatile v_U8_t    isLoadUnloadInProgress;
 
-   /* SSR re-init in progress */
-   volatile v_U8_t     isReInitInProgress;
-
 } VosContextType, *pVosContextType;
 
 
@@ -507,8 +504,6 @@ void clearWlanResetReason(void);
 void vos_timer_module_init( void );
 VOS_STATUS vos_watchdog_wlan_shutdown(void);
 VOS_STATUS vos_watchdog_wlan_re_init(void);
-int isWDresetInProgress(void);
-void vos_ssr_protect(const char *caller_func);
-void vos_ssr_unprotect(const char *caller_func);
+v_BOOL_t isWDresetInProgress(void);
 
 #endif // #if !defined __VOSS_SCHED_H

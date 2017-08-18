@@ -3061,6 +3061,9 @@ typedef struct
   /*Self Station MAC address*/
   wpt_macAddr selfMacAddr;
 
+  /*Self STA device mode*/
+  wpt_uint32 currDeviceMode;
+
   /*Status of the operation*/
   wpt_uint32  uStatus;
 }WDI_AddSTASelfInfoType;
@@ -3215,21 +3218,6 @@ typedef struct
    function pointer will be called */ 
    void*                    pUserData; 
 }WDI_EnterBmpsReqParamsType;
-
-/*---------------------------------------------------------------------------
-  WDI_EnterImpsReqParamsType
-  Enter IMPS parameters passed to WDI from WDA
----------------------------------------------------------------------------*/
-typedef struct
-{
-   /*Request status callback offered by UMAC - it is called if the current req
-   has returned PENDING as status; it delivers the status of sending the message
-   over the BUS */
-   WDI_ReqStatusCb          wdiReqStatusCB;
-   /*The user data passed in by UMAC, it will be sent back when the above
-   function pointer will be called */
-   void*                    pUserData;
-}WDI_EnterImpsReqParamsType;
 
 /*---------------------------------------------------------------------------
   WDI_EnterBmpsReqParamsType
@@ -4604,6 +4592,9 @@ typedef struct
 
   /* Beacon Early Termination Interval */
   wpt_uint32 uBETInterval; 
+
+  /* MAX LI for modulated DTIM */
+  wpt_uint32 uMaxLIModulatedDTIM;
 
 } WDI_SetPowerParamsInfo;
 
@@ -7831,7 +7822,6 @@ WDI_SetPwrSaveCfgReq
 WDI_Status 
 WDI_EnterImpsReq
 (
-   WDI_EnterImpsReqParamsType *pwdiEnterImpsReqParams,
    WDI_EnterImpsRspCb  wdiEnterImpsRspCb,
    void*                   pUserData
 );
@@ -9491,17 +9481,16 @@ WDI_UpdateVHTOpModeReq
     Or if host driver detects any abnormal stcuk may display
 
  @param  displaySnapshot : Display DXE snapshot option
- @param  debugFlags      : Enable stall detect features
-                           defined by WPAL_DeviceDebugFlags
-                           These features may effect
-                           data performance.
+ @param  enableStallDetect : Enable stall detect feature
+                        This feature will take effect to data performance
+                        Not integrate till fully verification
  @see
  @return none
 */
 void WDI_TransportChannelDebug
 (
    wpt_boolean  displaySnapshot,
-   wpt_uint8    debugFlags
+   wpt_boolean  toggleStallDetect
 );
 
 /**

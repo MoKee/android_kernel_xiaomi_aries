@@ -193,6 +193,7 @@ cfgSetInt(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 value)
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);)
         return eSIR_CFG_INVALID_ID;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -273,6 +274,7 @@ cfgCheckValid(tpAniSirGlobal pMac, tANI_U16 cfgId)
         PELOG3(cfgLog(pMac, LOG3, FL("Invalid cfg id %d"), cfgId);)
         return(eSIR_CFG_INVALID_ID);
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -325,6 +327,7 @@ wlan_cfgGetInt(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 *pValue)
         retVal = eSIR_CFG_INVALID_ID;
         return retVal;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -394,6 +397,7 @@ cfgIncrementInt(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 value)
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);)
         retVal = eSIR_CFG_INVALID_ID;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -497,6 +501,7 @@ cfgSetStrNotify(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U8 *pStr,
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);)
         return eSIR_CFG_INVALID_ID;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -600,10 +605,11 @@ wlan_cfgGetStr(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U8 *pBuf, tANI_U32 *pLe
         retVal = eSIR_CFG_INVALID_ID;
         return retVal;
     }
-    if (!pMac->cfg.gCfgEntry)
-    {
-        PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
-        return eSIR_CFG_INVALID_ID;
+
+    if (!pMac->cfg.gCfgEntry) {
+        PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"), cfgId);)
+        retVal = eSIR_CFG_INVALID_ID;
+        return retVal;
     }
 
     control  = pMac->cfg.gCfgEntry[cfgId].control;
@@ -681,6 +687,7 @@ wlan_cfgGetStrMaxLen(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 *pLength)
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);)
         retVal = eSIR_CFG_INVALID_ID;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)
@@ -747,6 +754,7 @@ wlan_cfgGetStrLen(tpAniSirGlobal pMac, tANI_U16 cfgId, tANI_U32 *pLength)
         PELOGE(cfgLog(pMac, LOGE, FL("Invalid cfg id %d"), cfgId);)
         retVal = eSIR_CFG_INVALID_ID;
     }
+
     if (!pMac->cfg.gCfgEntry)
     {
         PELOGE(cfgLog(pMac, LOGE, FL("gCfgEntry is NULL"));)

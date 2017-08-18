@@ -789,10 +789,10 @@ SCH
 WNI_CFG_FIXED_RATE  I   4   0
 V    RW    NP
 HAL
-0    44     0
+0    31     0
 V    RW    NP
 HAL
-0    44     0
+0    31     0
 
 #ENUM AUTO 	                                0
 
@@ -832,19 +832,6 @@ HAL
 #ENUM 0_5MBPS_SLR_20MHZ_SIMO                30
 
 #ENUM 68_25MBPS_QC_PROP_20MHZ_SIMO          31
-#ENUM 54MBPS_MCS3_40MHZ_SIMO                32
-#ENUM 81MBPS_MCS4_40MHZ_SIMO                33
-#ENUM 108MBPS_MCS5_40MHZ_SIMO               34
-#ENUM 121_5MBPS_MCS6_40MHZ_SIMO             35
-#ENUM 135MBPS_MCS7_40MHZ_SIMO               36
-#ENUM 15MBPS_MCS0_40MHZ_SIMO_SGI            37
-#ENUM 30MBPS_MCS1_40MHZ_SIMO_SGI            38
-#ENUM 45MBPS_MCS2_40MHZ_SIMO_SGI            39
-#ENUM 60MBPS_MCS3_40MHZ_SIMO_SGI            40
-#ENUM 90MBPS_MCS4_40MHZ_SIMO_SGI            41
-#ENUM 120MBPS_MCS5_40MHZ_SIMO_SGI           42
-#ENUM 135MBPS_MCS6_40MHZ_SIMO_SGI           43
-#ENUM 150MBPS_MCS7_40MHZ_SIMO_SGI           44
 
 * *********************************************************
 *
@@ -3001,10 +2988,10 @@ LIM
 WNI_CFG_VHT_RX_HIGHEST_SUPPORTED_DATA_RATE  I    4    19
 V    RW    NP    
 LIM
-0    390   0
+1    434   434
 V    RW    NP    
 LIM
-0    390   0
+1    434   434
 
 *
 * Tx Highest supported data rate.
@@ -3012,10 +2999,10 @@ LIM
 WNI_CFG_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE  I    4    19
 V    RW    NP    
 LIM
-0    390    0
+1    434    434
 V    RW    NP    
 LIM
-0    390    0
+1    434    434
 
 *
 * VHT Operation Information
@@ -4512,56 +4499,26 @@ V    RW    NP
 HAL
 1    255    3
 
+* RA filter enable/disable
 *
-* BTC Active WLAN Len
-*
-WNI_CFG_BTC_ACTIVE_WLAN_LEN    I    4    7
+WNI_CFG_RA_FILTER_ENABLE    I    4    7
 V    RW    NP
 HAL
-0    250000    60000
+0    1     1
 V    RW    NP
 HAL
-0    250000    60000
+0    1     1
+*
+*
 
+* RA filter rate interval
 *
-* BTC Active BT Len
-*
-WNI_CFG_BTC_ACTIVE_BT_LEN    I    4    7
+WNI_CFG_RA_RATE_LIMIT_INTERVAL    I    4    7
 V    RW    NP
 HAL
-0    250000    90000
-V    RW    NP
+0    60     60
+V    RW     NP
 HAL
-0    250000    90000
-
+0    60     60
 *
-* BTC SAP Active WLAN Len
 *
-WNI_CFG_BTC_SAP_ACTIVE_WLAN_LEN    I    4    7
-V    RW    NP
-HAL
-0    250000    60000
-V    RW    NP
-HAL
-0    250000    60000
-
-*
-* BTC SAP Active BT Len
-*
-WNI_CFG_BTC_SAP_ACTIVE_BT_LEN    I    4    7
-V    RW    NP
-HAL
-0    250000    90000
-V    RW    NP
-HAL
-0    250000    90000
-
-* Debug p2p remain on channel
-*
-WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL    I    4    7
-V    RW    NP
-NONE
-0    1    0
-V    RW    NP
-NONE
-0    1    0
