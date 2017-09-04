@@ -54,7 +54,6 @@ static struct binder_node *binder_context_mgr_node;
 static uid_t binder_context_mgr_uid = -1;
 static int binder_last_id;
 static struct workqueue_struct *binder_deferred_workqueue;
-static uint32_t bad_target = 0;
 
 #define BINDER_DEBUG_ENTRY(name) \
 static int binder_##name##_open(struct inode *inode, struct file *file) \
@@ -104,9 +103,8 @@ enum {
 	BINDER_DEBUG_PRIORITY_CAP           = 1U << 14,
 	BINDER_DEBUG_BUFFER_ALLOC_ASYNC     = 1U << 15,
 };
-
-static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR | BINDER_DEBUG_FAILED_TRANSACTION;
-
+static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
+	BINDER_DEBUG_FAILED_TRANSACTION | BINDER_DEBUG_DEAD_TRANSACTION;
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
 static bool binder_debug_no_lock;
@@ -676,7 +674,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
 		page = &proc->pages[(page_addr - proc->buffer) / PAGE_SIZE];
 
 		BUG_ON(*page);
-		*page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+		*page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (*page == NULL) {
 			printk(KERN_ERR "binder: %d: binder_alloc_buf failed "
 			       "for page at %p\n", proc->pid, page_addr);
@@ -1176,14 +1174,10 @@ static struct binder_ref *binder_get_ref_for_node(struct binder_proc *proc,
 
 static void binder_delete_ref(struct binder_ref *ref)
 {
-	if (bad_target  == ref->desc)
-		binder_debug(BINDER_DEBUG_USER_ERROR,
-		     "binder: %d:%d delete ref %d desc %d for "
-		     "node %d node proc %d s %d w %d d %p\n",
-		     ref->proc->pid, current->pid,  ref->debug_id,
-		     ref->desc, ref->node->debug_id,
-		     ref->node->proc ? ref->node->proc->pid : 0,
-		     ref->strong, ref->weak, ref->death);
+	binder_debug(BINDER_DEBUG_INTERNAL_REFS,
+		     "binder: %d delete ref %d desc %d for "
+		     "node %d\n", ref->proc->pid, ref->debug_id,
+		     ref->desc, ref->node->debug_id);
 
 	rb_erase(&ref->rb_node_desc, &ref->proc->refs_by_desc);
 	rb_erase(&ref->rb_node_node, &ref->proc->refs_by_node);
@@ -1254,11 +1248,8 @@ static int binder_dec_ref(struct binder_ref *ref, int strong)
 		}
 		ref->weak--;
 	}
-	if (ref->strong == 0 && ref->weak == 0) {
-		if (strong && bad_target == ref->desc)
-			binder_user_error("last ref strong:%d\n" , strong);
+	if (ref->strong == 0 && ref->weak == 0)
 		binder_delete_ref(ref);
-	}
 	return 0;
 }
 
@@ -1482,10 +1473,9 @@ static void binder_transaction(struct binder_proc *proc,
 			struct binder_ref *ref;
 			ref = binder_get_ref(proc, tr->target.handle);
 			if (ref == NULL) {
-				bad_target = tr->target.handle;
 				binder_user_error("binder: %d:%d got "
-					"transaction to invalid handle (%d)\n",
-					proc->pid, thread->pid, tr->target.handle);
+					"transaction to invalid handle\n",
+					proc->pid, thread->pid);
 				return_error = BR_FAILED_REPLY;
 				goto err_invalid_target_handle;
 			}
@@ -1895,11 +1885,9 @@ int binder_thread_write(struct binder_proc *proc, struct binder_thread *thread,
 			} else
 				ref = binder_get_ref(proc, target);
 			if (ref == NULL) {
-				bad_target = target;
-				binder_user_error("binder: cmd 0x%08x %d:%d refcou"
-					"nt change on invalid ref %d, buffer:0x%p, size:%d, consume: %ld\n",
-					cmd, proc->pid, thread->pid, target,
-					buffer, size, *consumed);
+				binder_user_error("binder: %d:%d refcou"
+					"nt change on invalid ref %d\n",
+					proc->pid, thread->pid, target);
 				break;
 			}
 			switch (cmd) {
