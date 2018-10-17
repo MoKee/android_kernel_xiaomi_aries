@@ -2286,12 +2286,7 @@ static struct rmi_function_handler function_handler = {
 	.attention = rmi_f11_attention,
 	.remove = rmi_f11_remove,
 #if	RESUME_REZERO
-#if defined(CONFIG_HAS_EARLYSUSPEND) && \
-			!defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	.late_resume = rmi_f11_resume
-#else
 	.resume = rmi_f11_resume
-#endif  /* defined(CONFIG_HAS_EARLYSUSPEND) && !def... */
 #endif
 };
 
