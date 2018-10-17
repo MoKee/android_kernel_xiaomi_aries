@@ -373,10 +373,6 @@ struct rmi_driver_data {
 
 #ifdef CONFIG_PM
 	bool suspended;
-#if defined(CONFIG_HAS_EARLYSUSPEND) && \
-			!defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	bool early_suspended;
-#endif
 	struct mutex suspend_mutex;
 
 	void *pm_data;

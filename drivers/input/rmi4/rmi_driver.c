@@ -53,10 +53,8 @@
 #define RMI_DEVICE_RESET_CMD	0x01
 #define DEFAULT_RESET_DELAY_MS	100
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void rmi_driver_early_suspend(struct early_suspend *h);
-static void rmi_driver_late_resume(struct early_suspend *h);
-#endif
+static int fb_notifier_callback(struct notifier_block *self,
+		unsigned long event, void *data);
 
 /* sysfs files for attributes for driver values. */
 static ssize_t rmi_driver_bsr_show(struct device *dev,
@@ -1189,13 +1187,8 @@ static int rmi_driver_probe(struct rmi_device *rmi_dev)
 
 	mutex_init(&data->suspend_mutex);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	rmi_dev->early_suspend_handler.level =
-		EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	rmi_dev->early_suspend_handler.suspend = rmi_driver_early_suspend;
-	rmi_dev->early_suspend_handler.resume = rmi_driver_late_resume;
-	register_early_suspend(&rmi_dev->early_suspend_handler);
-#endif /* CONFIG_HAS_EARLYSUSPEND */
+	rmi_dev->fb_notif.notifier_call = fb_notifier_callback;
+ 	retval = fb_register_client(&rmi_dev->fb_notif);
 #endif /* CONFIG_PM */
 	data->enabled = true;
 
@@ -1272,15 +1265,6 @@ static int standard_suspend(struct rmi_device *rmi_dev)
 	if (data->suspended)
 		goto exit;
 
-#if !defined(CONFIG_HAS_EARLYSUSPEND) || \
-			defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	if (data->pre_suspend) {
-		retval = data->pre_suspend(data->pm_data);
-		if (retval)
-			goto exit;
-	}
-#endif  /* !CONFIG_HAS_EARLYSUSPEND */
-
 	disable_sensor(rmi_dev);
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)
@@ -1341,148 +1325,37 @@ static int standard_resume(struct rmi_device *rmi_dev)
 	if (retval)
 		goto exit;
 
-#if !defined(CONFIG_HAS_EARLYSUSPEND) || \
-			defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	if (data->post_resume) {
-		retval = data->post_resume(data->pm_data);
-		if (retval)
-			goto exit;
-	}
-#endif
-
 	data->suspended = false;
 exit:
 	mutex_unlock(&data->suspend_mutex);
 	return retval;
 }
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && \
-			!defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-static void standard_early_suspend(struct early_suspend *h)
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
 {
+	struct fb_event *evdata = data;
+	int *blank;
 	struct rmi_device *rmi_dev =
-	    container_of(h, struct rmi_device, early_suspend_handler);
-	struct rmi_driver_data *data;
-	struct rmi_function_container *entry;
-	int retval = 0;
-
-	data = rmi_get_driverdata(rmi_dev);
-
-	mutex_lock(&data->suspend_mutex);
-	if (data->early_suspended)
-		goto exit;
-
-	if (data->pre_suspend) {
-		retval = data->pre_suspend(data->pm_data);
-		if (retval) {
-			dev_err(&rmi_dev->dev, "Presuspend failed with %d.\n",
-				retval);
-			goto exit;
+		container_of(self, struct rmi_device, fb_notif);
+ 	if (evdata && evdata->data && rmi_dev
+		&& event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+		case FB_BLANK_VSYNC_SUSPEND:
+		case FB_BLANK_HSYNC_SUSPEND:
+			standard_resume(rmi_dev);
+			break;
+		default:
+		case FB_BLANK_POWERDOWN:
+			standard_suspend(rmi_dev);
 		}
 	}
-
-	list_for_each_entry(entry, &data->rmi_functions.list, list)
-		if (entry->fh && entry->fh->early_suspend) {
-			retval = entry->fh->early_suspend(entry);
-			if (retval < 0) {
-				dev_err(&rmi_dev->dev, "F%02x early suspend failed with %d.\n",
-					entry->fd.function_number, retval);
-				goto exit;
-			}
-		}
-
-	if (data->f01_container && data->f01_container->fh
-				&& data->f01_container->fh->early_suspend) {
-		retval = data->f01_container->fh->early_suspend(
-				data->f01_container);
-		if (retval < 0) {
-			dev_err(&rmi_dev->dev, "F01 early suspend failed with %d.\n",
-				retval);
-			goto exit;
-		}
-	}
-
-	data->early_suspended = true;
-exit:
-	mutex_unlock(&data->suspend_mutex);
+ 	return 0;
 }
 
-static void standard_late_resume(struct early_suspend *h)
-{
-	struct rmi_device *rmi_dev =
-	    container_of(h, struct rmi_device, early_suspend_handler);
-	struct rmi_driver_data *data;
-	struct rmi_function_container *entry;
-	int retval = 0;
-
-	data = rmi_get_driverdata(rmi_dev);
-
-	mutex_lock(&data->suspend_mutex);
-	if (!data->early_suspended)
-		goto exit;
-
-	if (data->f01_container && data->f01_container->fh
-				&& data->f01_container->fh->late_resume) {
-		retval = data->f01_container->fh->late_resume(
-				data->f01_container);
-		if (retval < 0) {
-			dev_err(&rmi_dev->dev, "F01 late resume failed with %d.\n",
-				retval);
-			goto exit;
-		}
-	}
-
-	list_for_each_entry(entry, &data->rmi_functions.list, list)
-		if (entry->fh && entry->fh->late_resume) {
-			retval = entry->fh->late_resume(entry);
-			if (retval < 0) {
-				dev_err(&rmi_dev->dev, "F%02X late resume failed with %d.\n",
-					entry->fd.function_number, retval);
-				goto exit;
-			}
-		}
-
-	if (data->post_resume) {
-		retval = data->post_resume(data->pm_data);
-		if (retval) {
-			dev_err(&rmi_dev->dev, "Post resume failed with %d.\n",
-				retval);
-			goto exit;
-		}
-	}
-
-	data->early_suspended = false;
-
-exit:
-	mutex_unlock(&data->suspend_mutex);
-}
-#endif /* defined(CONFIG_HAS_EARLYSUSPEND) && !de... */
-
-#ifdef CONFIG_RMI4_SPECIAL_EARLYSUSPEND
-static int rmi_driver_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int rmi_driver_resume(struct device *dev)
-{
-	return 0;
-}
-
-static void rmi_driver_early_suspend(struct early_suspend *h)
-{
-	struct rmi_device *rmi_dev =
-	    container_of(h, struct rmi_device, early_suspend_handler);
-	standard_suspend(rmi_dev);
-}
-
-static void rmi_driver_late_resume(struct early_suspend *h)
-{
-	struct rmi_device *rmi_dev =
-	    container_of(h, struct rmi_device, early_suspend_handler);
-	standard_resume(rmi_dev);
-}
-#else
 static int rmi_driver_suspend(struct device *dev)
 {
 	struct rmi_device *rmi_dev = to_rmi_device(dev);
@@ -1495,19 +1368,6 @@ static int rmi_driver_resume(struct device *dev)
 	return standard_resume(rmi_dev);
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void rmi_driver_early_suspend(struct early_suspend *h)
-{
-	return standard_early_suspend(h);
-}
-
-static void rmi_driver_late_resume(struct early_suspend *h)
-{
-	return standard_late_resume(h);
-}
-#endif /* CONFIG_HAS_EARLYSUSPEND */
-#endif /* CONFIG_RMI4_SPECIAL_EARLYSUSPEND */
-
 #endif /* CONFIG_PM */
 
 static int __devexit rmi_driver_remove(struct rmi_device *rmi_dev)
@@ -1516,9 +1376,7 @@ static int __devexit rmi_driver_remove(struct rmi_device *rmi_dev)
 	struct rmi_function_container *entry;
 	int i;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&rmi_dev->early_suspend_handler);
-#endif /* CONFIG_HAS_EARLYSUSPEND */
+	fb_unregister_client(&rmi_dev->fb_notif);
 #ifdef	CONFIG_RMI4_DEBUG
 	teardown_debugfs(rmi_dev);
 #endif

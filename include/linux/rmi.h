@@ -34,10 +34,8 @@
 #include <linux/debugfs.h>
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
-
+#include <linux/notifier.h>
+#include <linux/fb.h>
 
 /* Permissions for sysfs attributes.  Since the permissions policy will change
  * on a global basis in the future, rather than edit all sysfs attrs everywhere
@@ -261,11 +259,6 @@ struct rmi_function_handler {
 #ifdef CONFIG_PM
 	int (*suspend)(struct rmi_function_container *fc);
 	int (*resume)(struct rmi_function_container *fc);
-#if defined(CONFIG_HAS_EARLYSUSPEND) && \
-		!defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	int (*early_suspend)(struct rmi_function_container *fc);
-	int (*late_resume)(struct rmi_function_container *fc);
-#endif
 #endif
 	void (*remove)(struct rmi_function_container *fc);
 };
@@ -414,10 +407,8 @@ struct rmi_device {
 
 	struct rmi_driver *driver;
 	struct rmi_phys_device *phys;
+	struct notifier_block fb_notif;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend_handler;
-#endif
 #ifdef CONFIG_RMI4_DEBUG
 	struct dentry *debugfs_root;
 #endif

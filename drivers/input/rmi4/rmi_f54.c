@@ -2395,14 +2395,8 @@ static struct rmi_function_handler function_handler = {
 	.reset = rmi_f54_reset,
 	.attention = rmi_f54_attention,
 #ifdef CONFIG_PM
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	.early_suspend = rmi_f54_suspend,
-	.late_resume = rmi_f54_resume,
-#else
 	.suspend = rmi_f54_suspend,
 	.resume = rmi_f54_resume,
-#endif /* CONFIG_HAS_EARLYSUSPEND */
 #endif /* CONFIG_PM */
 	.remove = rmi_f54_remove,
 };
