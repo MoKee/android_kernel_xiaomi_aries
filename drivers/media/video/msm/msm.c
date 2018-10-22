@@ -1564,6 +1564,12 @@ static int msm_server_v4l2_subscribe_event(struct v4l2_fh *fh,
 {
 	int rc = 0;
 
+	if (!fh || !sub) {
+		pr_err("%s: NULL pointer fh 0x%p sub 0x%p",
+			__func__, fh, sub);
+		return -EINVAL;
+	}
+
 	D("%s: fh = 0x%x, type = 0x%x", __func__, (u32)fh, sub->type);
 	if (sub->type == V4L2_EVENT_ALL) {
 		/*sub->type = MSM_ISP_EVENT_START;*/
@@ -1601,6 +1607,12 @@ static int msm_server_v4l2_unsubscribe_event(struct v4l2_fh *fh,
 			struct v4l2_event_subscription *sub)
 {
 	int rc = 0;
+
+	if (!fh || !sub) {
+		pr_err("%s: NULL pointer fh 0x%p sub 0x%p",
+			__func__, fh, sub);
+		return -EINVAL;
+	}
 
 	D("%s: fh = 0x%x\n", __func__, (u32)fh);
 	rc = v4l2_event_unsubscribe(fh, sub);
