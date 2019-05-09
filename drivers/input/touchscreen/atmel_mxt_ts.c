@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/debugfs.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
@@ -2455,6 +2456,40 @@ static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
 
+static int mxt_proc_init(struct kobject *sysfs_node_parent) {
+	int ret = 0;
+	char *driver_path;
+
+	struct proc_dir_entry *proc_entry_ts;
+
+	// allocate memory for input device path
+	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
+	if(!driver_path) {
+		ret = -ENOMEM;
+		pr_err("%s: failed to allocate memory\n", __func__);
+		goto exit;
+	}
+
+	// store input device path
+	sprintf(driver_path, "/sys%s",
+			kobject_get_path(sysfs_node_parent, GFP_KERNEL));
+
+	pr_debug("%s: driver_path:%s\n", __func__, driver_path);
+
+	// symlink /proc/touchscreen to input device
+	proc_entry_ts = proc_symlink("touchscreen", NULL, driver_path);
+	if (!proc_entry_ts) {
+		ret = -ENOMEM;
+		pr_err("%s: failed to symlink to touchscreen\n", __func__);
+		goto free_driver_path;
+	}
+
+free_driver_path:
+	kfree(driver_path);
+exit:
+	return ret;
+}
+
 static int mxt_start(struct mxt_data *data)
 {
 	int error;
@@ -3301,6 +3336,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 
 	mxt_do_force_calibration(data);
 
+	mxt_proc_init(&client->dev.kobj);
 
 	sysfs_bin_attr_init(&data->mem_access_attr);
 	data->mem_access_attr.attr.name = "mem_access";
