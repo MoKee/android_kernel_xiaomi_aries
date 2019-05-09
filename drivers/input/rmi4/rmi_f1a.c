@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/rmi.h>
 #include <linux/input.h>
+#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include "rmi_driver.h"
 
@@ -42,6 +43,28 @@
 #define STRONGEST_BUTTON_HYSTERESIS_MAX		255
 #define FILTER_STRENGTH_MIN			0
 #define FILTER_STRENGTH_MAX			255
+
+static int flag_disable;
+
+static ssize_t disable_keys_show(struct device *dev,
+                struct device_attribute *attr, char *buf)
+{
+        size_t count = 0;
+        count += sprintf(buf, "%d\n", flag_disable);
+        return count;
+}
+
+static ssize_t disable_keys_store(struct device *dev,
+                struct device_attribute *attr, const char *buf, size_t count)
+{
+	int vs = 0;
+        sscanf(buf, "%d ",&vs);
+        if (vs < 0 || vs > 1) vs = 0;
+	        flag_disable = vs;
+        return count;
+}
+
+static DEVICE_ATTR(disable_keys, (S_IWUSR|S_IRUGO), disable_keys_show, disable_keys_store);
 
 union f1a_0d_query {
 	struct {
@@ -349,6 +372,41 @@ err_free_data:
 }
 
 
+static ssize_t rmi4_proc_init(struct kobject *sysfs_node_parent) {
+	int ret = 0;
+	char *driver_path;
+
+	struct proc_dir_entry *proc_entry_ts;
+
+	// allocate memory for input device path
+	driver_path = kzalloc(PATH_MAX, GFP_KERNEL);
+	if(!driver_path) {
+		ret = -ENOMEM;
+		pr_err("%s: failed to allocate memory\n", __func__);
+		goto exit;
+	}
+
+	// store input device path
+	sprintf(driver_path, "/sys%s",
+			kobject_get_path(sysfs_node_parent, GFP_KERNEL));
+
+	pr_debug("%s: driver_path:%s\n", __func__, driver_path);
+
+	// symlink /proc/touchscreen to input device
+	proc_entry_ts = proc_symlink("touchscreen", NULL, driver_path);
+	if (!proc_entry_ts) {
+		ret = -ENOMEM;
+		pr_err("%s: failed to symlink to touchscreen\n", __func__);
+		goto free_driver_path;
+	}
+
+free_driver_path:
+	kfree(driver_path);
+exit:
+	return ret;
+}
+
+
 static int rmi_f1a_alloc_memory(struct rmi_function_container *fc)
 {
 	struct f1a_data *f1a;
@@ -554,6 +612,8 @@ static void rmi_f1a_free_memory(struct rmi_function_container *fc)
 	if (query->has_filter_strength)
 		sysfs_remove_file(&fc->dev.kobj, attrify(filter_strength));
 
+	sysfs_remove_file(&fc->dev.kobj, &dev_attr_disable_keys.attr);
+
 	if (f1a) {
 		kfree(f1a->button_data_buffer);
 		kfree(f1a->button_map);
@@ -596,6 +656,8 @@ static int rmi_f1a_initialize(struct rmi_function_container *fc)
 
 	/* initial all default values for f1a data here */
 	pdata = to_rmi_platform_data(rmi_dev);
+
+	flag_disable = 0;
 
 	/* for firmware currently can't be confirmed, temprorily give
 	a default value here */
@@ -775,6 +837,14 @@ static int rmi_f1a_create_sysfs(struct rmi_function_container *fc)
 			return -ENODEV;
 		}
 	}
+
+	if (sysfs_create_file(&fc->dev.kobj, &dev_attr_disable_keys.attr) < 0) {
+		dev_err(&fc->dev, "Failed to create control sysfs files.");
+		return -ENODEV;
+	}
+
+	rmi4_proc_init(&fc->dev.kobj);
+
 	return 0;
 }
 
@@ -894,6 +964,10 @@ static int rmi_f1a_attention(struct rmi_function_container *fc, u8 *irq_bits)
 	struct rmi_device *rmi_dev = fc->rmi_dev;
 	struct f1a_data *f1a = fc->data;
 	u16 data_base_addr = fc->fd.data_base_addr;
+
+	if (flag_disable) {
+		return 0;
+	}
 
 	/* Read the button data. */
 	error = rmi_read_block(rmi_dev, data_base_addr, f1a->button_data_buffer,
