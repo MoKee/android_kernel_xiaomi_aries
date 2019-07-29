@@ -689,6 +689,9 @@ calib_fail:
 	return rc;
 }
 
+#if (defined (CONFIG_MACH_MSM8960_CDP) && defined (CONFIG_W1_SLAVE_BQ2022))
+extern int w1_bq2022_battery_id(void);
+#endif
 uint32_t pm8xxx_adc_read(enum pm8xxx_adc_channels channel,
 				struct pm8xxx_adc_chan_result *result)
 {
@@ -703,6 +706,15 @@ uint32_t pm8xxx_adc_read(enum pm8xxx_adc_channels channel,
 		if (pm8xxx_adc_calib_device() == 0)
 			pm8xxx_adc_calib_device_init = true;
 	}
+
+#if (defined (CONFIG_MACH_MSM8960_CDP) && defined (CONFIG_W1_SLAVE_BQ2022))
+	/* Read battery id through w1 bus on 8960pro platform */
+	if (channel == CHANNEL_BATT_ID) {
+		result->adc_code = result->measurement =
+			result->physical = w1_bq2022_battery_id();
+		return 0;
+	}
+#endif
 
 	mutex_lock(&adc_pmic->adc_lock);
 
