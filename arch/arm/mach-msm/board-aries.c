@@ -94,6 +94,7 @@
 
 #include "msm_watchdog.h"
 #include "board-aries.h"
+#include <mach/board_aries.h>
 #include "clock.h"
 #include "spm.h"
 #include <mach/mpm.h>
@@ -752,6 +753,7 @@ static void __init apq8064_reserve(void)
 	apq8064_set_display_params(prim_panel_name, ext_panel_name,
 		ext_resolution);
 	msm_reserve();
+	aries_reserve();
 }
 
 static void __init apq8064_early_reserve(void)
@@ -4475,6 +4477,7 @@ static void __init apq8064_cdp_init(void)
 		spi_register_board_info(spi_board_info,
 						ARRAY_SIZE(spi_board_info));
 	}
+	aries_add_ramconsole_devices();
 	apq8064_init_fb();
 	apq8064_init_gpu();
 	platform_add_devices(apq8064_footswitch, apq8064_num_footswitch);
